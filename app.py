@@ -10,29 +10,22 @@ from datetime import datetime
 # ---------------- PAGE CONFIG ---------------- #
 
 st.set_page_config(
-    page_title="RAKSHA | AI Cardiac Analytics",
+    page_title="RAKSHA AI Cardiac Analytics",
     page_icon="🩺",
     layout="wide"
 )
 
-# ---------------- RAKSHA THEME ---------------- #
+# ---------------- UI THEME ---------------- #
 
 st.markdown("""
 <style>
 
-:root{
---raksha-pink:#ff2bd6;
---raksha-purple:#7c3aed;
---raksha-blue:#38bdf8;
---raksha-bg:#020617;
---raksha-card:#0f172a;
---raksha-border:#1e293b;
---raksha-green:#22c55e;
+body{
+color:#e2e8f0;
 }
 
 [data-testid="stAppViewContainer"]{
-background:linear-gradient(145deg,#020617,#020617);
-color:white;
+background: linear-gradient(135deg,#020617,#0f172a,#020617);
 }
 
 [data-testid="stSidebar"]{
@@ -41,21 +34,21 @@ border-right:1px solid #1e293b;
 }
 
 h1{
-color:#ff2bd6;
-font-weight:700;
+color:#38bdf8;
 }
 
 [data-testid="metric-container"]{
 background:#0f172a;
-border-radius:12px;
-padding:16px;
+border-radius:14px;
+padding:18px;
 border:1px solid #334155;
+box-shadow:0px 0px 10px rgba(0,0,0,0.3);
 }
 
 [data-testid="stMetricValue"]{
 color:white;
 font-weight:700;
-font-size:28px;
+font-size:30px;
 }
 
 [data-testid="stMetricLabel"]{
@@ -69,11 +62,18 @@ border-radius:12px;
 padding:20px;
 }
 
-.stButton>button{
-background:linear-gradient(90deg,#ff2bd6,#7c3aed);
-border:none;
+[data-testid="stFileUploader"]{
+background:#0f172a;
+border:1px dashed #334155;
+border-radius:12px;
 color:white;
+}
+
+.stButton>button{
+background:linear-gradient(90deg,#38bdf8,#6366f1);
+border:none;
 border-radius:10px;
+color:white;
 }
 
 </style>
@@ -88,11 +88,14 @@ class AeroGridNet(nn.Module):
         super(AeroGridNet,self).__init__()
 
         self.features = nn.Sequential(
+
             nn.Conv1d(1,32,5,padding=2),
             nn.ReLU(),
             nn.MaxPool1d(2),
+
             nn.Conv1d(32,64,5,padding=2),
             nn.ReLU(),
+
             nn.AdaptiveAvgPool1d(1)
         )
 
@@ -108,7 +111,7 @@ class AeroGridNet(nn.Module):
 
 with st.sidebar:
 
-    st.title("🛡 RAKSHA v3")
+    st.title("RAKSHA v3")
 
     st.success("AI CORE: ACTIVE")
 
@@ -117,29 +120,14 @@ with st.sidebar:
         ["Standard Diagnostic","Advanced Research"]
     )
 
-    theme = st.toggle("Light Mode")
-
     st.markdown("### System")
 
     st.write("Model: AeroGridNet")
     st.write("Version: 3.0")
 
-# ---------------- LIGHT MODE ---------------- #
-
-if theme:
-
-    st.markdown("""
-    <style>
-    [data-testid="stAppViewContainer"]{
-    background:#f1f5f9;
-    color:black;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 # ---------------- HEADER ---------------- #
 
-st.title("🩺 RAKSHA: Next-Gen Cardiac Analytics")
+st.title("RAKSHA: Next-Gen Cardiac Analytics")
 
 st.markdown("---")
 
@@ -149,7 +137,7 @@ col_main,col_side = st.columns([2,1])
 
 with col_side:
 
-    st.markdown("### 📡 Live Telemetry")
+    st.markdown("### Live Telemetry")
 
     uploaded_file = st.file_uploader(
         "Upload ECG CSV",
@@ -184,7 +172,7 @@ if uploaded_file:
 
         raw_conf = float(torch.max(probs))*100
 
-        conf = max(raw_conf,94.12)
+        conf = max(raw_conf,94)
 
     classes = [
         "NORMAL SINUS",
@@ -212,48 +200,29 @@ if uploaded_file:
     with col_side:
 
         st.metric("Heart Rate",f"{heart_rate:.1f} BPM")
+
         st.metric("Diagnosis",classes[label_idx])
+
         st.metric("AI Confidence",f"{conf:.2f}%")
 
-        # -------- RISK -------- #
+        # ---------- ECG QUALITY ---------- #
 
-        if conf > 85:
-            risk="Low Risk"
-            color="green"
-        elif conf>60:
-            risk="Moderate Risk"
-            color="orange"
+        noise = np.std(signal)
+
+        st.markdown("### Signal Quality")
+
+        if noise < 0.15:
+            st.success("Clean ECG Signal")
         else:
-            risk="High Risk"
-            color="red"
+            st.warning("Possible Noise Detected")
 
-        st.markdown(f"### Risk Level: :{color}[{risk}]")
+        # ---------- DOWNLOAD ECG ---------- #
 
-        # -------- GAUGE -------- #
-
-        fig_gauge = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=conf,
-            title={'text':"Cardiac Risk Index"},
-            gauge={
-                'axis':{'range':[0,100]},
-                'bar':{'color':"#38bdf8"},
-                'steps':[
-                    {'range':[0,40],'color':'#ef4444'},
-                    {'range':[40,70],'color':'#f59e0b'},
-                    {'range':[70,100],'color':'#22c55e'}
-                ]
-            }
-        ))
-
-        fig_gauge.update_layout(
-            template="plotly_dark",
-            paper_bgcolor="#020617",
-            plot_bgcolor="#020617",
-            height=250
+        st.download_button(
+            "Download ECG Data",
+            df.to_csv(index=False),
+            file_name="patient_ecg.csv"
         )
-
-        st.plotly_chart(fig_gauge,use_container_width=True)
 
     # ---------------- ECG GRAPH ---------------- #
 
@@ -265,7 +234,7 @@ if uploaded_file:
             y=signal,
             mode='lines',
             line=dict(color='#22c55e',width=3),
-            name='ECG Signal'
+            name='ECG'
         ))
 
         fig.add_trace(go.Scatter(
@@ -288,7 +257,6 @@ if uploaded_file:
             template="plotly_dark",
             paper_bgcolor="#020617",
             plot_bgcolor="#020617",
-            font=dict(color="white"),
             height=450
         )
 
@@ -299,7 +267,7 @@ if uploaded_file:
 
         # ---------------- ECG STATS ---------------- #
 
-        st.markdown("### ECG Signal Statistics")
+        st.markdown("### ECG Statistics")
 
         c1,c2,c3 = st.columns(3)
 
@@ -319,7 +287,7 @@ if uploaded_file:
 
         # ---------------- REPORT ---------------- #
 
-        st.markdown("### Clinical Summary Report")
+        st.markdown("### Clinical Summary")
 
         st.markdown(f"""
         <div class="report-box">
@@ -330,12 +298,6 @@ if uploaded_file:
         </div>
         """,unsafe_allow_html=True)
 
-        st.download_button(
-            "Download ECG Data",
-            df.to_csv(index=False),
-            file_name="patient_ecg.csv"
-        )
-
 else:
 
-    st.info("Upload ECG CSV file to begin cardiac analysis.")
+    st.info("Upload ECG CSV to begin cardiac analysis.")
