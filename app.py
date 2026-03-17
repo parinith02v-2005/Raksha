@@ -10,9 +10,9 @@ from datetime import datetime
 # ---------------- PAGE CONFIG ---------------- #
 
 st.set_page_config(
-    page_title="RAKSHA v3 | Clinical Suite",
-    layout="wide",
-    page_icon="🩺"
+    page_title="RAKSHA | AI Cardiac Analytics",
+    page_icon="🩺",
+    layout="wide"
 )
 
 # ---------------- RAKSHA THEME ---------------- #
@@ -27,66 +27,53 @@ st.markdown("""
 --raksha-bg:#020617;
 --raksha-card:#0f172a;
 --raksha-border:#1e293b;
+--raksha-green:#22c55e;
 }
 
-/* MAIN BACKGROUND */
 [data-testid="stAppViewContainer"]{
-background: linear-gradient(145deg,#020617,#020617,#020617);
+background:linear-gradient(145deg,#020617,#020617);
 color:white;
 }
 
-/* SIDEBAR */
 [data-testid="stSidebar"]{
 background:#020617;
-border-right:1px solid var(--raksha-border);
+border-right:1px solid #1e293b;
 }
 
-/* TITLE */
 h1{
-color:var(--raksha-pink);
+color:#ff2bd6;
 font-weight:700;
 }
 
-/* METRIC CARD */
 [data-testid="metric-container"]{
-background:var(--raksha-card);
+background:#0f172a;
 border-radius:12px;
 padding:16px;
-border:1px solid var(--raksha-border);
+border:1px solid #334155;
 }
 
-/* METRIC VALUE */
 [data-testid="stMetricValue"]{
-color:#ffffff;
+color:white;
+font-weight:700;
 font-size:28px;
 }
 
-/* METRIC LABEL */
 [data-testid="stMetricLabel"]{
-color:#cbd5f5;
+color:#94a3b8;
 }
 
-/* BUTTON */
-.stButton>button{
-background:linear-gradient(90deg,var(--raksha-pink),var(--raksha-purple));
-border:none;
-color:white;
-border-radius:10px;
-}
-
-/* REPORT BOX */
 .report-box{
 background:#020617;
-border:1px solid var(--raksha-border);
+border:1px solid #1e293b;
 border-radius:12px;
 padding:20px;
 }
 
-/* FILE UPLOADER */
-[data-testid="stFileUploader"]{
-background:#020617;
-border:1px dashed var(--raksha-border);
-border-radius:12px;
+.stButton>button{
+background:linear-gradient(90deg,#ff2bd6,#7c3aed);
+border:none;
+color:white;
+border-radius:10px;
 }
 
 </style>
@@ -101,16 +88,12 @@ class AeroGridNet(nn.Module):
         super(AeroGridNet,self).__init__()
 
         self.features = nn.Sequential(
-
             nn.Conv1d(1,32,5,padding=2),
             nn.ReLU(),
             nn.MaxPool1d(2),
-
             nn.Conv1d(32,64,5,padding=2),
             nn.ReLU(),
-
             nn.AdaptiveAvgPool1d(1)
-
         )
 
         self.classifier = nn.Linear(64,5)
@@ -118,11 +101,8 @@ class AeroGridNet(nn.Module):
     def forward(self,x):
 
         x=self.features(x)
-
         x=x.view(x.size(0),-1)
-
         return self.classifier(x)
-
 
 # ---------------- SIDEBAR ---------------- #
 
@@ -137,7 +117,7 @@ with st.sidebar:
         ["Standard Diagnostic","Advanced Research"]
     )
 
-    theme_toggle = st.toggle("Light Mode")
+    theme = st.toggle("Light Mode")
 
     st.markdown("### System")
 
@@ -146,19 +126,16 @@ with st.sidebar:
 
 # ---------------- LIGHT MODE ---------------- #
 
-if theme_toggle:
+if theme:
 
-    st.markdown(
-        """
-        <style>
-        [data-testid="stAppViewContainer"]{
-        background:#f8fafc;
-        color:black;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown("""
+    <style>
+    [data-testid="stAppViewContainer"]{
+    background:#f1f5f9;
+    color:black;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ---------------- HEADER ---------------- #
 
@@ -224,7 +201,6 @@ if uploaded_file:
     if len(peaks)>1:
 
         rr=np.diff(peaks)
-
         heart_rate=60/(np.mean(rr)/360)
 
     else:
@@ -236,12 +212,10 @@ if uploaded_file:
     with col_side:
 
         st.metric("Heart Rate",f"{heart_rate:.1f} BPM")
-
         st.metric("Diagnosis",classes[label_idx])
-
         st.metric("AI Confidence",f"{conf:.2f}%")
 
-        # -------- RISK LEVEL -------- #
+        # -------- RISK -------- #
 
         if conf > 85:
             risk="Low Risk"
@@ -258,32 +232,26 @@ if uploaded_file:
         # -------- GAUGE -------- #
 
         fig_gauge = go.Figure(go.Indicator(
-
             mode="gauge+number",
-
             value=conf,
-
             title={'text':"Cardiac Risk Index"},
-
             gauge={
-
                 'axis':{'range':[0,100]},
-
                 'bar':{'color':"#38bdf8"},
-
                 'steps':[
-
                     {'range':[0,40],'color':'#ef4444'},
                     {'range':[40,70],'color':'#f59e0b'},
                     {'range':[70,100],'color':'#22c55e'}
-
                 ]
-
             }
-
         ))
 
-        fig_gauge.update_layout(template="plotly_dark",height=250)
+        fig_gauge.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#020617",
+            plot_bgcolor="#020617",
+            height=250
+        )
 
         st.plotly_chart(fig_gauge,use_container_width=True)
 
@@ -294,55 +262,38 @@ if uploaded_file:
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(
-
             y=signal,
-
             mode='lines',
-
-            line=dict(color='#38bdf8',width=2),
-
+            line=dict(color='#22c55e',width=3),
             name='ECG Signal'
-
         ))
 
         fig.add_trace(go.Scatter(
-
             x=peaks,
-
             y=signal[peaks],
-
             mode='markers',
-
             marker=dict(color='red',size=6),
-
             name='R Peaks'
-
         ))
 
-        # -------- XAI ZONE -------- #
-
         fig.add_vrect(
-
             x0=150,
             x1=400,
-
-            fillcolor="green",
-
-            opacity=0.15,
-
+            fillcolor="rgba(34,197,94,0.15)",
             line_width=0,
-
             annotation_text="XAI ANALYSIS ZONE"
-
         )
 
         fig.update_layout(
-
             template="plotly_dark",
-
+            paper_bgcolor="#020617",
+            plot_bgcolor="#020617",
+            font=dict(color="white"),
             height=450
-
         )
+
+        fig.update_xaxes(showgrid=True, gridcolor="#1e293b")
+        fig.update_yaxes(showgrid=True, gridcolor="#1e293b")
 
         st.plotly_chart(fig,use_container_width=True)
 
@@ -353,21 +304,17 @@ if uploaded_file:
         c1,c2,c3 = st.columns(3)
 
         c1.metric("Mean Voltage",f"{np.mean(signal):.3f}")
-
         c2.metric("Max Voltage",f"{np.max(signal):.3f}")
-
         c3.metric("Min Voltage",f"{np.min(signal):.3f}")
 
-        # ---------------- PATIENT PROFILE ---------------- #
+        # ---------------- PATIENT ---------------- #
 
         st.markdown("### Patient Profile")
 
         p1,p2,p3 = st.columns(3)
 
         p1.metric("Age","52")
-
         p2.metric("Blood Pressure","128 / 82")
-
         p3.metric("SpO₂","97%")
 
         # ---------------- REPORT ---------------- #
@@ -376,15 +323,10 @@ if uploaded_file:
 
         st.markdown(f"""
         <div class="report-box">
-
         <b>Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}<br>
-
         <b>Diagnosis:</b> {classes[label_idx]}<br>
-
         <b>Confidence:</b> {conf:.2f}%<br><br>
-
         Recommendation: Clinical ECG review recommended.
-
         </div>
         """,unsafe_allow_html=True)
 
@@ -396,4 +338,4 @@ if uploaded_file:
 
 else:
 
-    st.info("Upload ECG CSV file to start cardiac analysis.")
+    st.info("Upload ECG CSV file to begin cardiac analysis.")
