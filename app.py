@@ -35,6 +35,96 @@ class AeroGridNet(nn.Module):
 # ---------------- STREAMLIT CONFIG ---------------- #
 
 st.set_page_config(
+    st.markdown("""
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+html, body, [class*="css"]  {
+    font-family: 'Inter', sans-serif;
+}
+
+/* MAIN BACKGROUND */
+[data-testid="stAppViewContainer"]{
+background: linear-gradient(135deg,#0f172a,#020617);
+color:white;
+}
+
+/* SIDEBAR */
+[data-testid="stSidebar"]{
+background: linear-gradient(180deg,#020617,#0f172a);
+border-right:1px solid rgba(255,255,255,0.05);
+}
+
+/* GLASS CARD */
+[data-testid="metric-container"]{
+background: rgba(255,255,255,0.04);
+border-radius:16px;
+padding:18px;
+backdrop-filter: blur(20px);
+border:1px solid rgba(255,255,255,0.08);
+box-shadow:
+0 10px 30px rgba(0,0,0,0.5),
+inset 0 1px 0 rgba(255,255,255,0.05);
+transition: all .3s ease;
+}
+
+/* HOVER EFFECT */
+[data-testid="metric-container"]:hover{
+transform: translateY(-4px);
+box-shadow:
+0 15px 35px rgba(0,0,0,0.7),
+0 0 20px rgba(255,0,150,0.25);
+}
+
+/* FILE UPLOAD */
+[data-testid="stFileUploader"]{
+background: rgba(255,255,255,0.03);
+border-radius:14px;
+border:1px dashed rgba(255,255,255,0.15);
+}
+
+/* BUTTONS */
+.stButton>button{
+background: linear-gradient(90deg,#ff00cc,#3333ff);
+border:none;
+color:white;
+border-radius:10px;
+padding:10px 22px;
+font-weight:500;
+}
+
+.stButton>button:hover{
+box-shadow:0 0 15px #ff00cc;
+}
+
+/* TITLE STYLE */
+h1{
+font-size:40px !important;
+background: linear-gradient(90deg,#ff00cc,#00e5ff);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+/* PLOT AREA */
+.js-plotly-plot{
+background: rgba(255,255,255,0.02);
+border-radius:16px;
+padding:10px;
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{
+width:6px;
+}
+
+::-webkit-scrollbar-thumb{
+background:linear-gradient(#ff00cc,#3333ff);
+border-radius:10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
     page_title="RAKSHA v3 | Clinical Suite",
     layout="wide",
     page_icon="🩺"
