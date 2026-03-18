@@ -39,8 +39,8 @@ color:#38bdf8;
 
 [data-testid="metric-container"]{
 background:#0f172a;
-border-radius:14px;
-padding:18px;
+border-radius:16px;
+padding:20px;
 border:1px solid #334155;
 box-shadow:0px 0px 10px rgba(0,0,0,0.3);
 }
