@@ -255,36 +255,54 @@ if signal is not None:
 
         st.plotly_chart(fig,use_container_width=True)
 
-# ---------------- GRAD CAM HEATMAP ---------------- #
 
-        st.markdown("### Explainable AI (Grad-CAM)")
 
-        cam=generate_gradcam(model,input_data,label_idx)
+ # ---------------- GRAD CAM HEATMAP ---------------- #
 
-        cam_resized=np.interp(
-            np.linspace(0,len(signal),len(cam)),
-            np.arange(len(cam)),
-            cam
-        )
+st.markdown("### Explainable AI (Grad-CAM)")
 
-        cam_fig=go.Figure()
+cam = generate_gradcam(model, input_data, label_idx)
 
-        cam_fig.add_trace(go.Scatter(
-            y=signal,
-            mode="lines",
-            name="ECG"
-        ))
+# Resize cam to signal length
+cam_resized = np.interp(
+    np.linspace(0, len(signal), len(cam)),
+    np.arange(len(cam)),
+    cam
+)
 
-        cam_fig.add_trace(go.Scatter(
-            y=cam_resized*np.max(signal),
-            fill='tozeroy',
-            opacity=0.4,
-            name="AI Attention"
-        ))
+fig_cam = go.Figure()
 
-        cam_fig.update_layout(template="plotly_dark")
+# ECG signal
+fig_cam.add_trace(go.Scatter(
+    y=signal,
+    mode='lines',
+    line=dict(color='#00ffa2', width=3),
+    name='ECG'
+))
 
-        st.plotly_chart(cam_fig,use_container_width=True)
+# Highlight AI important zones (dark green)
+threshold = 0.6
+important_regions = np.where(cam_resized > threshold)[0]
+
+for idx in important_regions:
+    fig_cam.add_vrect(
+        x0=idx,
+        x1=idx+1,
+        fillcolor="rgba(0,120,80,0.35)",   # DARK GREEN
+        line_width=0
+    )
+
+fig_cam.update_layout(
+    template="plotly_dark",
+    paper_bgcolor="#020617",
+    plot_bgcolor="#020617",
+    height=450
+)
+
+fig_cam.update_xaxes(showgrid=True, gridcolor="#334155")
+fig_cam.update_yaxes(showgrid=True, gridcolor="#334155")
+
+st.plotly_chart(fig_cam, use_container_width=True)True)
 
 # ---------------- PROBABILITY CHART ---------------- #
 
