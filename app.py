@@ -96,7 +96,7 @@ if signal is not None:
 
     # ---------------- LOAD MODEL ---------------- #
 
-    model_path="arrhythmia_model (1).pth"
+    model_path="arrhythmia_model.pth"
 
     if not os.path.exists(model_path):
 
