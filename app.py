@@ -74,48 +74,6 @@ class AeroGridNet(nn.Module):
         x=x.view(x.size(0),-1)
         return self.classifier(x)
 
-# ---------------- GRAD CAM ---------------- #
-
-def generate_gradcam(model,input_tensor,class_idx):
-
-    gradients=[]
-    activations=[]
-
-    def forward_hook(module,input,output):
-        activations.append(output)
-
-    def backward_hook(module,grad_in,grad_out):
-        gradients.append(grad_out[0])
-
-    target_layer=model.features[3]
-
-    fh=target_layer.register_forward_hook(forward_hook)
-    bh=target_layer.register_backward_hook(backward_hook)
-
-    output=model(input_tensor)
-
-    model.zero_grad()
-
-    output[0,class_idx].backward()
-
-    grads=gradients[0].detach().numpy()[0]
-    acts=activations[0].detach().numpy()[0]
-
-    weights=np.mean(grads,axis=1)
-
-    cam=np.zeros(acts.shape[1])
-
-    for i,w in enumerate(weights):
-        cam+=w*acts[i]
-
-    cam=np.maximum(cam,0)
-    cam=cam/(cam.max()+1e-8)
-
-    fh.remove()
-    bh.remove()
-
-    return cam
-
 # ---------------- SIDEBAR ---------------- #
 
 with st.sidebar:
@@ -123,21 +81,10 @@ with st.sidebar:
     st.title("RAKSHA v3")
     st.success("AI CORE: ACTIVE")
 
-    mode = st.radio(
-        "Analysis Mode",
-        ["Standard Diagnostic","Advanced Research"]
-    )
-
-    st.markdown("### Data Source")
-
     source = st.selectbox(
         "ECG Source",
-        ["CSV Upload","Live Simulation","IoT Stream"]
+        ["CSV Upload","Live Simulation"]
     )
-
-    st.markdown("### System")
-    st.write("Model: Raksha AI")
-    st.write("Version: 3.0")
 
 # ---------------- HEADER ---------------- #
 
@@ -146,9 +93,9 @@ st.markdown("---")
 
 col_main,col_side = st.columns([2,1])
 
-# ---------------- DATA SOURCE ---------------- #
-
 signal=None
+
+# ---------------- DATA SOURCE ---------------- #
 
 if source=="CSV Upload":
 
@@ -156,7 +103,7 @@ if source=="CSV Upload":
         uploaded_file=st.file_uploader("Upload ECG CSV",type="csv")
 
     if uploaded_file:
-        df=pd.read_csv(uploaded_file)
+        df=pd.read_csv(uploaded_file,header=None)
         signal=df.iloc[:,0].values.astype(np.float32)
 
 elif source=="Live Simulation":
@@ -166,25 +113,30 @@ elif source=="Live Simulation":
     t=np.linspace(0,10,1000)
     signal=np.sin(5*t)+np.random.normal(0,0.2,1000)
 
-elif source=="IoT Stream":
-
-    st.info("Waiting for IoT ECG Device...")
-    signal=None
-
 # ---------------- PROCESS ---------------- #
 
 if signal is not None:
 
+    # Normalize signal
     signal=(signal-np.mean(signal))/(np.std(signal)+1e-8)
 
+    # Resize ECG signal to model input size (187 samples)
+    TARGET_LENGTH=187
+
+    if len(signal)>TARGET_LENGTH:
+        signal=signal[:TARGET_LENGTH]
+    else:
+        signal=np.pad(signal,(0,TARGET_LENGTH-len(signal)))
+
+    # Load model
     model=AeroGridNet()
 
     try:
         model.load_state_dict(
-            torch.load("arrhythmia_model.pth",map_location="cpu")
+            torch.load("arrhythmia_model (1).pth",map_location="cpu")
         )
     except:
-        st.error("Model file not found")
+        st.error("Model file not found in repository")
         st.stop()
 
     model.eval()
@@ -197,9 +149,11 @@ if signal is not None:
 
         probs=torch.nn.functional.softmax(output,dim=1)
 
-        label_idx=torch.argmax(output,dim=1).item()
+        prob_values=probs.detach().numpy()[0]
 
-        conf=float(torch.max(probs))*100
+        label_idx=int(np.argmax(prob_values))
+
+        conf=float(np.max(prob_values))*100
 
     classes=[
         "NORMAL SINUS",
@@ -211,7 +165,7 @@ if signal is not None:
 
 # ---------------- HEART RATE ---------------- #
 
-    peaks,_=find_peaks(signal,distance=150)
+    peaks,_=find_peaks(signal,distance=30)
 
     if len(peaks)>1:
         rr=np.diff(peaks)
@@ -255,42 +209,9 @@ if signal is not None:
 
         st.plotly_chart(fig,use_container_width=True)
 
-# ---------------- GRAD CAM HEATMAP ---------------- #
-
-        st.markdown("### Explainable AI (Grad-CAM)")
-
-        cam=generate_gradcam(model,input_data,label_idx)
-
-        cam_resized=np.interp(
-            np.linspace(0,len(signal),len(cam)),
-            np.arange(len(cam)),
-            cam
-        )
-
-        cam_fig=go.Figure()
-
-        cam_fig.add_trace(go.Scatter(
-            y=signal,
-            mode="lines",
-            name="ECG"
-        ))
-
-        cam_fig.add_trace(go.Scatter(
-            y=cam_resized*np.max(signal),
-            fill='tozeroy',
-            opacity=0.4,
-            name="AI Attention"
-        ))
-
-        cam_fig.update_layout(template="plotly_dark")
-
-        st.plotly_chart(cam_fig,use_container_width=True)
-
 # ---------------- PROBABILITY CHART ---------------- #
 
         st.markdown("### Arrhythmia Probability")
-
-        prob_values=probs.numpy()[0]
 
         prob_fig=go.Figure()
 
@@ -302,17 +223,6 @@ if signal is not None:
         prob_fig.update_layout(template="plotly_dark")
 
         st.plotly_chart(prob_fig,use_container_width=True)
-
-# ---------------- ANOMALY DETECTION ---------------- #
-
-        st.markdown("### AI Anomaly Detection")
-
-        anomaly=np.std(signal)
-
-        if anomaly>1.5:
-            st.error("⚠ Abnormal rhythm detected")
-        else:
-            st.success("ECG rhythm stable")
 
 # ---------------- ECG STATS ---------------- #
 
