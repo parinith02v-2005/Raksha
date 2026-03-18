@@ -233,7 +233,7 @@ if uploaded_file:
         fig.add_trace(go.Scatter(
             y=signal,
             mode='lines',
-            line=dict(color='#22c55e',width=3),
+            line=dict(color='#7f8fa6',width=5),
             name='ECG'
         ))
 
