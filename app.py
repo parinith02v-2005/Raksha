@@ -29,7 +29,7 @@ background: linear-gradient(135deg,#020617,#0f172a,#020617);
 }
 
 [data-testid="stSidebar"]{
-background:#020617;
+background:#2d3436;
 border-right:1px solid #1e293b;
 }
 
