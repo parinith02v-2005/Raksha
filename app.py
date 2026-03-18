@@ -147,20 +147,24 @@ with col_side:
 # ---------------- PROCESS ---------------- #
 
 if uploaded_file:
-
     df = pd.read_csv(uploaded_file)
+    signal = df.iloc[:, 0].values.astype(np.float32)
 
-    signal = df.iloc[:,0].values.astype(np.float32)
+    # FIX: Use the class name you defined above
+    model = AeroGridNet() 
 
-    model = Raksha AI()
-
-    model.load_state_dict(
-        torch.load("arrhythmia_model.pth",map_location="cpu")
-    )
+    # Ensure the file 'arrhythmia_model.pth' exists in your directory
+    try:
+        model.load_state_dict(
+            torch.load("arrhythmia_model.pth", map_location="cpu")
+        )
+    except FileNotFoundError:
+        st.error("Model file 'arrhythmia_model.pth' not found. Please ensure it is in the directory.")
+        st.stop()
 
     model.eval()
-
-    input_data = torch.tensor(signal).reshape(1,1,-1)
+    
+    # ... rest of your code ...    input_data = torch.tensor(signal).reshape(1,1,-1)
 
     with torch.no_grad():
 
