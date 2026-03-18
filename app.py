@@ -42,7 +42,7 @@ padding:20px;
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- MODEL ---------------- #
+# ---------------- MODEL CLASS ---------------- #
 
 class AeroGridNet(nn.Module):
 
@@ -101,6 +101,8 @@ if source=="CSV Upload":
 
 elif source=="Live Simulation":
 
+    st.warning("Running Live ECG Simulation")
+
     t=np.linspace(0,10,1000)
     signal=np.sin(5*t)+np.random.normal(0,0.2,1000)
 
@@ -108,10 +110,10 @@ elif source=="Live Simulation":
 
 if signal is not None:
 
-    # Normalize ECG
+    # Normalize signal
     signal=(signal-np.mean(signal))/(np.std(signal)+1e-8)
 
-    # Resize to MIT-BIH input size
+    # Resize to model input size (MIT-BIH standard)
     TARGET_LENGTH=187
 
     if len(signal)>TARGET_LENGTH:
@@ -121,20 +123,23 @@ if signal is not None:
 
     # ---------------- LOAD MODEL ---------------- #
 
-    model=AeroGridNet()
-
     model_path="arrhythmia_model.pth"
 
     if not os.path.exists(model_path):
         st.error("Model file not found in repository")
-        st.write("Files in directory:", os.listdir())
+        st.write("Files available:",os.listdir())
         st.stop()
 
-    model.load_state_dict(
-        torch.load(model_path,map_location="cpu")
-    )
+    try:
+        # load complete model safely
+        model=torch.load(model_path,map_location="cpu")
+        model.eval()
 
-    model.eval()
+    except:
+        # fallback if only state_dict exists
+        model=AeroGridNet()
+        model.load_state_dict(torch.load(model_path,map_location="cpu"))
+        model.eval()
 
     # ---------------- PREDICTION ---------------- #
 
@@ -144,9 +149,9 @@ if signal is not None:
 
         output=model(input_data)
 
-        probs=torch.nn.functional.softmax(output,dim=1)
+        probs=torch.softmax(output,dim=1)
 
-        prob_values=probs.detach().numpy()[0]
+        prob_values=probs.cpu().numpy()[0]
 
         label_idx=int(np.argmax(prob_values))
 
@@ -186,17 +191,17 @@ if signal is not None:
 
         fig.add_trace(go.Scatter(
             y=signal,
-            mode='lines',
-            line=dict(color='#38bdf8',width=4),
-            name='ECG'
+            mode="lines",
+            line=dict(color="#38bdf8",width=4),
+            name="ECG"
         ))
 
         fig.add_trace(go.Scatter(
             x=peaks,
             y=signal[peaks],
-            mode='markers',
-            marker=dict(color='red',size=8),
-            name='R Peaks'
+            mode="markers",
+            marker=dict(color="red",size=8),
+            name="R Peaks"
         ))
 
         fig.update_layout(
