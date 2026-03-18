@@ -6,7 +6,6 @@ import numpy as np
 import plotly.graph_objects as go
 from scipy.signal import find_peaks
 from datetime import datetime
-import time
 
 # ---------------- PAGE CONFIG ---------------- #
 
@@ -15,6 +14,40 @@ st.set_page_config(
     page_icon="🩺",
     layout="wide"
 )
+
+# ---------------- UI THEME ---------------- #
+
+st.markdown("""
+<style>
+body{color:#e2e8f0;}
+
+[data-testid="stAppViewContainer"]{
+background: linear-gradient(135deg,#0f172a,#1e293b,#334155);
+}
+
+[data-testid="stSidebar"]{
+background:#020617;
+border-right:1px solid #1e293b;
+}
+
+h1{color:#38bdf8;}
+
+[data-testid="metric-container"]{
+background:#020617;
+border-radius:16px;
+padding:20px;
+border:1px solid #1e293b;
+box-shadow:0px 0px 15px rgba(0,0,0,0.4);
+}
+
+.report-box{
+background:#020617;
+border:1px solid #1e293b;
+border-radius:12px;
+padding:20px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ---------------- MODEL ---------------- #
 
@@ -41,6 +74,48 @@ class AeroGridNet(nn.Module):
         x=x.view(x.size(0),-1)
         return self.classifier(x)
 
+# ---------------- GRAD CAM ---------------- #
+
+def generate_gradcam(model,input_tensor,class_idx):
+
+    gradients=[]
+    activations=[]
+
+    def forward_hook(module,input,output):
+        activations.append(output)
+
+    def backward_hook(module,grad_in,grad_out):
+        gradients.append(grad_out[0])
+
+    target_layer=model.features[3]
+
+    fh=target_layer.register_forward_hook(forward_hook)
+    bh=target_layer.register_backward_hook(backward_hook)
+
+    output=model(input_tensor)
+
+    model.zero_grad()
+
+    output[0,class_idx].backward()
+
+    grads=gradients[0].detach().numpy()[0]
+    acts=activations[0].detach().numpy()[0]
+
+    weights=np.mean(grads,axis=1)
+
+    cam=np.zeros(acts.shape[1])
+
+    for i,w in enumerate(weights):
+        cam+=w*acts[i]
+
+    cam=np.maximum(cam,0)
+    cam=cam/(cam.max()+1e-8)
+
+    fh.remove()
+    bh.remove()
+
+    return cam
+
 # ---------------- SIDEBAR ---------------- #
 
 with st.sidebar:
@@ -48,10 +123,21 @@ with st.sidebar:
     st.title("RAKSHA v3")
     st.success("AI CORE: ACTIVE")
 
+    mode = st.radio(
+        "Analysis Mode",
+        ["Standard Diagnostic","Advanced Research"]
+    )
+
+    st.markdown("### Data Source")
+
     source = st.selectbox(
         "ECG Source",
-        ["CSV Upload","Live Simulation","Live Monitor"]
+        ["CSV Upload","Live Simulation","IoT Stream"]
     )
+
+    st.markdown("### System")
+    st.write("Model: Raksha AI")
+    st.write("Version: 3.0")
 
 # ---------------- HEADER ---------------- #
 
@@ -60,9 +146,9 @@ st.markdown("---")
 
 col_main,col_side = st.columns([2,1])
 
-signal=None
-
 # ---------------- DATA SOURCE ---------------- #
+
+signal=None
 
 if source=="CSV Upload":
 
@@ -75,34 +161,15 @@ if source=="CSV Upload":
 
 elif source=="Live Simulation":
 
+    st.warning("Running Live ECG Simulation")
+
     t=np.linspace(0,10,1000)
     signal=np.sin(5*t)+np.random.normal(0,0.2,1000)
 
-elif source=="Live Monitor":
+elif source=="IoT Stream":
 
-    placeholder=st.empty()
-
-    for _ in range(30):
-
-        t=np.linspace(0,5,500)
-        live_signal=np.sin(5*t)+np.random.normal(0,0.15,500)
-
-        fig_live=go.Figure()
-
-        fig_live.add_trace(go.Scatter(
-            y=live_signal,
-            mode="lines",
-            line=dict(color="#00ffa2",width=3)
-        ))
-
-        fig_live.update_layout(
-            template="plotly_dark",
-            title="Live ECG Monitor"
-        )
-
-        placeholder.plotly_chart(fig_live,use_container_width=True)
-
-        time.sleep(0.3)
+    st.info("Waiting for IoT ECG Device...")
+    signal=None
 
 # ---------------- PROCESS ---------------- #
 
@@ -117,17 +184,22 @@ if signal is not None:
             torch.load("arrhythmia_model.pth",map_location="cpu")
         )
     except:
-        st.warning("Model file not found. Using demo output.")
+        st.error("Model file not found")
+        st.stop()
+
+    model.eval()
 
     input_data=torch.tensor(signal).float().unsqueeze(0).unsqueeze(0)
 
-    output=model(input_data)
+    with torch.no_grad():
 
-    probs=torch.nn.functional.softmax(output,dim=1)
+        output=model(input_data)
 
-    label_idx=torch.argmax(output,dim=1).item()
+        probs=torch.nn.functional.softmax(output,dim=1)
 
-    conf=float(torch.max(probs))*100
+        label_idx=torch.argmax(output,dim=1).item()
+
+        conf=float(torch.max(probs))*100
 
     classes=[
         "NORMAL SINUS",
@@ -164,7 +236,7 @@ if signal is not None:
         fig.add_trace(go.Scatter(
             y=signal,
             mode='lines',
-            line=dict(color='#00ffa2',width=3),
+            line=dict(color='#38bdf8',width=4),
             name='ECG'
         ))
 
@@ -176,58 +248,49 @@ if signal is not None:
             name='R Peaks'
         ))
 
-# ---------------- PQRST LABELS ---------------- #
-
-        for p in peaks:
-
-            fig.add_annotation(x=p,y=signal[p],text="R",showarrow=True)
-
-            if p-40>0:
-                fig.add_annotation(x=p-40,y=signal[p-40],text="Q",showarrow=False)
-
-            if p+40<len(signal):
-                fig.add_annotation(x=p+40,y=signal[p+40],text="S",showarrow=False)
-
-# ---------------- ARRHYTHMIA RISK ZONES ---------------- #
-
-        if np.std(signal)>1.2:
-
-            fig.add_vrect(
-                x0=200,
-                x1=350,
-                fillcolor="rgba(255,0,0,0.2)",
-                line_width=0,
-                annotation_text="ARRHYTHMIA RISK"
-            )
-
-# ---------------- ECG GRID ---------------- #
-
-        fig.update_xaxes(
-            showgrid=True,
-            gridwidth=1,
-            gridcolor="#1f2937"
-        )
-
-        fig.update_yaxes(
-            showgrid=True,
-            gridwidth=1,
-            gridcolor="#1f2937"
-        )
-
         fig.update_layout(
             template="plotly_dark",
-            height=450,
-            paper_bgcolor="#020617",
-            plot_bgcolor="#020617"
+            height=450
         )
 
         st.plotly_chart(fig,use_container_width=True)
 
+# ---------------- GRAD CAM HEATMAP ---------------- #
+
+        st.markdown("### Explainable AI (Grad-CAM)")
+
+        cam=generate_gradcam(model,input_data,label_idx)
+
+        cam_resized=np.interp(
+            np.linspace(0,len(signal),len(cam)),
+            np.arange(len(cam)),
+            cam
+        )
+
+        cam_fig=go.Figure()
+
+        cam_fig.add_trace(go.Scatter(
+            y=signal,
+            mode="lines",
+            name="ECG"
+        ))
+
+        cam_fig.add_trace(go.Scatter(
+            y=cam_resized*np.max(signal),
+            fill='tozeroy',
+            opacity=0.4,
+            name="AI Attention"
+        ))
+
+        cam_fig.update_layout(template="plotly_dark")
+
+        st.plotly_chart(cam_fig,use_container_width=True)
+
 # ---------------- PROBABILITY CHART ---------------- #
 
-        st.subheader("Arrhythmia Probability")
+        st.markdown("### Arrhythmia Probability")
 
-        prob_values=probs.detach().numpy()[0]
+        prob_values=probs.numpy()[0]
 
         prob_fig=go.Figure()
 
@@ -242,18 +305,18 @@ if signal is not None:
 
 # ---------------- ANOMALY DETECTION ---------------- #
 
-        st.subheader("AI Anomaly Detection")
+        st.markdown("### AI Anomaly Detection")
 
         anomaly=np.std(signal)
 
         if anomaly>1.5:
-            st.error("⚠ Possible abnormal rhythm detected")
+            st.error("⚠ Abnormal rhythm detected")
         else:
             st.success("ECG rhythm stable")
 
 # ---------------- ECG STATS ---------------- #
 
-        st.subheader("ECG Statistics")
+        st.markdown("### ECG Statistics")
 
         c1,c2,c3=st.columns(3)
 
@@ -261,9 +324,19 @@ if signal is not None:
         c2.metric("Max Voltage",f"{np.max(signal):.3f}")
         c3.metric("Min Voltage",f"{np.min(signal):.3f}")
 
+# ---------------- PATIENT ---------------- #
+
+        st.markdown("### Patient Profile")
+
+        p1,p2,p3=st.columns(3)
+
+        p1.metric("Age","50")
+        p2.metric("Blood Pressure","128/82")
+        p3.metric("SpO₂","97%")
+
 # ---------------- REPORT ---------------- #
 
-        st.subheader("Clinical Summary")
+        st.markdown("### Clinical Summary")
 
         report=f"""
 Date: {datetime.now()}
@@ -273,7 +346,7 @@ Heart Rate: {heart_rate:.1f} BPM
 """
 
         st.markdown(f"""
-        <div style="background:#020617;padding:15px;border-radius:10px">
+        <div class="report-box">
         <b>Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}<br>
         <b>Diagnosis:</b> {classes[label_idx]}<br>
         <b>Confidence:</b> {conf:.2f}%<br>
