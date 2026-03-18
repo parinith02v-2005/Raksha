@@ -44,28 +44,48 @@ padding:20px;
 
 # ---------------- MODEL ---------------- #
 
-class AeroGridNet(nn.Module):
+class RakshaNet(nn.Module):
 
     def __init__(self):
-        super(AeroGridNet,self).__init__()
+        super(RakshaNet,self).__init__()
 
-        self.features = nn.Sequential(
+        self.conv = nn.Sequential(
+
             nn.Conv1d(1,32,5,padding=2),
+            nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.MaxPool1d(2),
 
             nn.Conv1d(32,64,5,padding=2),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
+            nn.MaxPool1d(2),
 
+            nn.Conv1d(64,128,5,padding=2),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
             nn.AdaptiveAvgPool1d(1)
         )
 
-        self.classifier = nn.Linear(64,5)
+        self.fc = nn.Sequential(
+
+            nn.Linear(128,64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64,5)
+
+        )
 
     def forward(self,x):
-        x=self.features(x)
+
+        x=self.conv(x)
+
         x=x.view(x.size(0),-1)
-        return self.classifier(x)
+
+        x=self.fc(x)
+
+        return x
+
 
 # ---------------- SIDEBAR ---------------- #
 
@@ -93,10 +113,13 @@ signal=None
 if source=="CSV Upload":
 
     with col_side:
-        uploaded_file=st.file_uploader("Upload ECG CSV",type="csv")
+
+        uploaded_file = st.file_uploader("Upload ECG CSV",type="csv")
 
     if uploaded_file:
+
         df=pd.read_csv(uploaded_file,header=None)
+
         signal=df.iloc[:,0].values.astype(np.float32)
 
 elif source=="Live Simulation":
@@ -104,6 +127,7 @@ elif source=="Live Simulation":
     st.warning("Running Live ECG Simulation")
 
     t=np.linspace(0,10,1000)
+
     signal=np.sin(5*t)+np.random.normal(0,0.2,1000)
 
 # ---------------- PROCESS ---------------- #
@@ -111,28 +135,34 @@ elif source=="Live Simulation":
 if signal is not None:
 
     # Normalize ECG
+
     signal=(signal-np.mean(signal))/(np.std(signal)+1e-8)
 
     TARGET_LENGTH=187
 
     if len(signal)>TARGET_LENGTH:
+
         signal=signal[:TARGET_LENGTH]
+
     else:
+
         signal=np.pad(signal,(0,TARGET_LENGTH-len(signal)))
 
-    # ---------------- LOAD MODEL ---------------- #
+# ---------------- LOAD MODEL ---------------- #
 
     model_path="arrhythmia_model.pth"
 
     if not os.path.exists(model_path):
 
         st.error("Model file not found in repository")
+
         st.write("Available files:",os.listdir())
+
         st.stop()
 
     try:
 
-        model=AeroGridNet()
+        model=RakshaNet()
 
         state_dict=torch.load(model_path,map_location="cpu")
 
@@ -143,10 +173,12 @@ if signal is not None:
     except Exception as e:
 
         st.error("Model loading failed")
+
         st.write(e)
+
         st.stop()
 
-    # ---------------- PREDICTION ---------------- #
+# ---------------- PREDICTION ---------------- #
 
     input_data=torch.tensor(signal).float().unsqueeze(0).unsqueeze(0)
 
@@ -163,11 +195,13 @@ if signal is not None:
         conf=float(np.max(prob_values))*100
 
     classes=[
+
         "NORMAL SINUS",
         "SUPRAVENTRICULAR",
         "VENTRICULAR",
         "FUSION",
         "UNKNOWN"
+
     ]
 
 # ---------------- HEART RATE ---------------- #
@@ -175,9 +209,13 @@ if signal is not None:
     peaks,_=find_peaks(signal,distance=30)
 
     if len(peaks)>1:
+
         rr=np.diff(peaks)
+
         heart_rate=60/(np.mean(rr)/360)
+
     else:
+
         heart_rate=72
 
 # ---------------- SIDE PANEL ---------------- #
@@ -185,7 +223,9 @@ if signal is not None:
     with col_side:
 
         st.metric("Heart Rate",f"{heart_rate:.1f} BPM")
+
         st.metric("Diagnosis",classes[label_idx])
+
         st.metric("AI Confidence",f"{conf:.2f}%")
 
 # ---------------- ECG GRAPH ---------------- #
@@ -195,23 +235,29 @@ if signal is not None:
         fig=go.Figure()
 
         fig.add_trace(go.Scatter(
+
             y=signal,
             mode="lines",
             line=dict(color="#38bdf8",width=4),
             name="ECG"
+
         ))
 
         fig.add_trace(go.Scatter(
+
             x=peaks,
             y=signal[peaks],
             mode="markers",
             marker=dict(color="red",size=8),
             name="R Peaks"
+
         ))
 
         fig.update_layout(
+
             template="plotly_dark",
             height=450
+
         )
 
         st.plotly_chart(fig,use_container_width=True)
@@ -223,8 +269,10 @@ if signal is not None:
         prob_fig=go.Figure()
 
         prob_fig.add_trace(go.Bar(
+
             x=classes,
             y=prob_values
+
         ))
 
         prob_fig.update_layout(template="plotly_dark")
@@ -238,7 +286,9 @@ if signal is not None:
         c1,c2,c3=st.columns(3)
 
         c1.metric("Mean Voltage",f"{np.mean(signal):.3f}")
+
         c2.metric("Max Voltage",f"{np.max(signal):.3f}")
+
         c3.metric("Min Voltage",f"{np.min(signal):.3f}")
 
 # ---------------- PATIENT PROFILE ---------------- #
@@ -248,7 +298,9 @@ if signal is not None:
         p1,p2,p3=st.columns(3)
 
         p1.metric("Age","50")
+
         p2.metric("Blood Pressure","128/82")
+
         p3.metric("SpO₂","97%")
 
 # ---------------- REPORT ---------------- #
@@ -264,17 +316,24 @@ Heart Rate: {heart_rate:.1f} BPM
 
         st.markdown(f"""
         <div class="report-box">
+
         <b>Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}<br>
+
         <b>Diagnosis:</b> {classes[label_idx]}<br>
+
         <b>Confidence:</b> {conf:.2f}%<br>
+
         Recommendation: Clinical ECG review recommended.
+
         </div>
         """,unsafe_allow_html=True)
 
         st.download_button(
+
             "Download Medical Report",
             report,
             file_name="raksha_report.txt"
+
         )
 
 else:
