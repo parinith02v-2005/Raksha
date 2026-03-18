@@ -6,6 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from scipy.signal import find_peaks
 from datetime import datetime
+import os
 
 # ---------------- PAGE CONFIG ---------------- #
 
@@ -15,7 +16,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------------- UI THEME ---------------- #
+# ---------------- UI STYLE ---------------- #
 
 st.markdown("""
 <style>
@@ -31,14 +32,6 @@ border-right:1px solid #1e293b;
 }
 
 h1{color:#38bdf8;}
-
-[data-testid="metric-container"]{
-background:#020617;
-border-radius:16px;
-padding:20px;
-border:1px solid #1e293b;
-box-shadow:0px 0px 15px rgba(0,0,0,0.4);
-}
 
 .report-box{
 background:#020617;
@@ -108,8 +101,6 @@ if source=="CSV Upload":
 
 elif source=="Live Simulation":
 
-    st.warning("Running Live ECG Simulation")
-
     t=np.linspace(0,10,1000)
     signal=np.sin(5*t)+np.random.normal(0,0.2,1000)
 
@@ -117,10 +108,10 @@ elif source=="Live Simulation":
 
 if signal is not None:
 
-    # Normalize signal
+    # Normalize ECG
     signal=(signal-np.mean(signal))/(np.std(signal)+1e-8)
 
-    # Resize ECG signal to model input size (187 samples)
+    # Resize to MIT-BIH input size
     TARGET_LENGTH=187
 
     if len(signal)>TARGET_LENGTH:
@@ -128,18 +119,24 @@ if signal is not None:
     else:
         signal=np.pad(signal,(0,TARGET_LENGTH-len(signal)))
 
-    # Load model
+    # ---------------- LOAD MODEL ---------------- #
+
     model=AeroGridNet()
 
-    try:
-        model.load_state_dict(
-            torch.load("arrhythmia_model (1).pth",map_location="cpu")
-        )
-    except:
+    model_path="arrhythmia_model.pth"
+
+    if not os.path.exists(model_path):
         st.error("Model file not found in repository")
+        st.write("Files in directory:", os.listdir())
         st.stop()
 
+    model.load_state_dict(
+        torch.load(model_path,map_location="cpu")
+    )
+
     model.eval()
+
+    # ---------------- PREDICTION ---------------- #
 
     input_data=torch.tensor(signal).float().unsqueeze(0).unsqueeze(0)
 
@@ -234,7 +231,7 @@ if signal is not None:
         c2.metric("Max Voltage",f"{np.max(signal):.3f}")
         c3.metric("Min Voltage",f"{np.min(signal):.3f}")
 
-# ---------------- PATIENT ---------------- #
+# ---------------- PATIENT PROFILE ---------------- #
 
         st.markdown("### Patient Profile")
 
