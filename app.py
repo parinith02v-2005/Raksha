@@ -25,16 +25,16 @@ color:#81ecec;
 }
 
 [data-testid="stAppViewContainer"]{
-background: linear-gradient(135deg,#020617,#0f172a,#020617);
+background: linear-gradient(135deg,#273c75,#0f172a,#7f8fa6);
 }
 
 [data-testid="stSidebar"]{
 background:#2d3436;
-border-right:1px solid #1e293b;
+border-right:1px solid #718093;
 }
 
 h1{
-color:#38bdf8;
+color:#40739e;
 }
 
 [data-testid="metric-container"]{
