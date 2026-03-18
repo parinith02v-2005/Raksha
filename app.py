@@ -1,6 +1,5 @@
 import streamlit as st
 import torch
-import torch.nn as nn
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -41,31 +40,6 @@ padding:20px;
 }
 </style>
 """, unsafe_allow_html=True)
-
-# ---------------- MODEL CLASS ---------------- #
-
-class AeroGridNet(nn.Module):
-
-    def __init__(self):
-        super(AeroGridNet,self).__init__()
-
-        self.features = nn.Sequential(
-            nn.Conv1d(1,32,5,padding=2),
-            nn.ReLU(),
-            nn.MaxPool1d(2),
-
-            nn.Conv1d(32,64,5,padding=2),
-            nn.ReLU(),
-
-            nn.AdaptiveAvgPool1d(1)
-        )
-
-        self.classifier = nn.Linear(64,5)
-
-    def forward(self,x):
-        x=self.features(x)
-        x=x.view(x.size(0),-1)
-        return self.classifier(x)
 
 # ---------------- SIDEBAR ---------------- #
 
@@ -110,10 +84,9 @@ elif source=="Live Simulation":
 
 if signal is not None:
 
-    # Normalize signal
+    # Normalize ECG
     signal=(signal-np.mean(signal))/(np.std(signal)+1e-8)
 
-    # Resize to model input size (MIT-BIH standard)
     TARGET_LENGTH=187
 
     if len(signal)>TARGET_LENGTH:
@@ -123,23 +96,26 @@ if signal is not None:
 
     # ---------------- LOAD MODEL ---------------- #
 
-    model_path="arrhythmia_model.pth"
+    model_path="arrhythmia_model (1).pth"
 
     if not os.path.exists(model_path):
+
         st.error("Model file not found in repository")
-        st.write("Files available:",os.listdir())
+        st.write("Available files:",os.listdir())
         st.stop()
 
     try:
-        # load complete model safely
+
+        # LOAD FULL MODEL
         model=torch.load(model_path,map_location="cpu")
+
         model.eval()
 
-    except:
-        # fallback if only state_dict exists
-        model=AeroGridNet()
-        model.load_state_dict(torch.load(model_path,map_location="cpu"))
-        model.eval()
+    except Exception as e:
+
+        st.error("Model loading failed")
+        st.write(e)
+        st.stop()
 
     # ---------------- PREDICTION ---------------- #
 
@@ -211,7 +187,7 @@ if signal is not None:
 
         st.plotly_chart(fig,use_container_width=True)
 
-# ---------------- PROBABILITY CHART ---------------- #
+# ---------------- PROBABILITY ---------------- #
 
         st.markdown("### Arrhythmia Probability")
 
