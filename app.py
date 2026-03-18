@@ -1,5 +1,6 @@
 import streamlit as st
 import torch
+import torch.nn as nn
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -40,6 +41,31 @@ padding:20px;
 }
 </style>
 """, unsafe_allow_html=True)
+
+# ---------------- MODEL ---------------- #
+
+class AeroGridNet(nn.Module):
+
+    def __init__(self):
+        super(AeroGridNet,self).__init__()
+
+        self.features = nn.Sequential(
+            nn.Conv1d(1,32,5,padding=2),
+            nn.ReLU(),
+            nn.MaxPool1d(2),
+
+            nn.Conv1d(32,64,5,padding=2),
+            nn.ReLU(),
+
+            nn.AdaptiveAvgPool1d(1)
+        )
+
+        self.classifier = nn.Linear(64,5)
+
+    def forward(self,x):
+        x=self.features(x)
+        x=x.view(x.size(0),-1)
+        return self.classifier(x)
 
 # ---------------- SIDEBAR ---------------- #
 
@@ -106,8 +132,11 @@ if signal is not None:
 
     try:
 
-        # LOAD FULL MODEL
-        model=torch.load(model_path,map_location="cpu")
+        model=AeroGridNet()
+
+        state_dict=torch.load(model_path,map_location="cpu")
+
+        model.load_state_dict(state_dict)
 
         model.eval()
 
@@ -127,7 +156,7 @@ if signal is not None:
 
         probs=torch.softmax(output,dim=1)
 
-        prob_values=probs.cpu().numpy()[0]
+        prob_values=probs.numpy()[0]
 
         label_idx=int(np.argmax(prob_values))
 
