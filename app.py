@@ -122,7 +122,7 @@ with st.sidebar:
 
     st.markdown("### System")
 
-    st.write("Model: AeroGridNet")
+    st.write("Model: Raksha AI")
     st.write("Version: 3.0")
 
 # ---------------- HEADER ---------------- #
@@ -152,7 +152,7 @@ if uploaded_file:
 
     signal = df.iloc[:,0].values.astype(np.float32)
 
-    model = AeroGridNet()
+    model = Raksha AI()
 
     model.load_state_dict(
         torch.load("arrhythmia_model.pth",map_location="cpu")
@@ -233,7 +233,7 @@ if uploaded_file:
         fig.add_trace(go.Scatter(
             y=signal,
             mode='lines',
-            line=dict(color='#7f8fa6',width=5),
+            line=dict(color='#f5f6fa',width=5),
             name='ECG'
         ))
 
@@ -241,7 +241,7 @@ if uploaded_file:
             x=peaks,
             y=signal[peaks],
             mode='markers',
-            marker=dict(color='red',size=6),
+            marker=dict(color='red',size=8),
             name='R Peaks'
         ))
 
@@ -255,13 +255,13 @@ if uploaded_file:
 
         fig.update_layout(
             template="plotly_dark",
-            paper_bgcolor="#020617",
-            plot_bgcolor="#020617",
+            paper_bgcolor="#7f8fa6",
+            plot_bgcolor="#7f8fa6",
             height=450
         )
 
-        fig.update_xaxes(showgrid=True, gridcolor="#1e293b")
-        fig.update_yaxes(showgrid=True, gridcolor="#1e293b")
+        fig.update_xaxes(showgrid=True, gridcolor="#273c75")
+        fig.update_yaxes(showgrid=True, gridcolor="#273c75")
 
         st.plotly_chart(fig,use_container_width=True)
 
@@ -281,7 +281,7 @@ if uploaded_file:
 
         p1,p2,p3 = st.columns(3)
 
-        p1.metric("Age","52")
+        p1.metric("Age","50")
         p2.metric("Blood Pressure","128 / 82")
         p3.metric("SpO₂","97%")
 
