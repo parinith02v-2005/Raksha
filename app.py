@@ -21,28 +21,28 @@ st.markdown("""
 <style>
 
 body{
-color:#81ecec;
+color:#e2e8f0;
 }
 
 [data-testid="stAppViewContainer"]{
-background: linear-gradient(135deg,#273c75,#0f172a,#7f8fa6);
+background: linear-gradient(135deg,#0f172a,#1e293b,#334155);
 }
 
 [data-testid="stSidebar"]{
-background:#2d3436;
-border-right:1px solid #718093;
+background:#020617;
+border-right:1px solid #1e293b;
 }
 
 h1{
-color:#40739e;
+color:#38bdf8;
 }
 
 [data-testid="metric-container"]{
-background:#0f172a;
+background:#020617;
 border-radius:16px;
 padding:20px;
-border:1px solid #334155;
-box-shadow:0px 0px 10px rgba(0,0,0,0.3);
+border:1px solid #1e293b;
+box-shadow:0px 0px 15px rgba(0,0,0,0.4);
 }
 
 [data-testid="stMetricValue"]{
@@ -63,14 +63,14 @@ padding:20px;
 }
 
 [data-testid="stFileUploader"]{
-background:#0f172a;
+background:#020617;
 border:1px dashed #334155;
 border-radius:12px;
 color:white;
 }
 
 .stButton>button{
-background:linear-gradient(90deg,#38bdf8,#6366f1);
+background:linear-gradient(90deg,#22c55e,#06b6d4);
 border:none;
 border-radius:10px;
 color:white;
@@ -84,7 +84,6 @@ color:white;
 class AeroGridNet(nn.Module):
 
     def __init__(self):
-
         super(AeroGridNet,self).__init__()
 
         self.features = nn.Sequential(
@@ -147,24 +146,37 @@ with col_side:
 # ---------------- PROCESS ---------------- #
 
 if uploaded_file:
+
     df = pd.read_csv(uploaded_file)
-    signal = df.iloc[:, 0].values.astype(np.float32)
 
-    # FIX: Use the class name you defined above
-    model = AeroGridNet() 
+    signal = df.iloc[:,0].values.astype(np.float32)
 
-    # Ensure the file 'arrhythmia_model.pth' exists in your directory
+    # Normalize signal
+    signal = (signal - np.mean(signal)) / (np.std(signal)+1e-8)
+
+    # Ensure minimum length
+    if len(signal) < 300:
+        st.error("ECG signal too short.")
+        st.stop()
+
+    # Load model
+    model = AeroGridNet()
+
     try:
+
         model.load_state_dict(
-            torch.load("arrhythmia_model.pth", map_location="cpu")
+            torch.load("arrhythmia_model.pth",map_location="cpu")
         )
-    except FileNotFoundError:
-        st.error("Model file 'arrhythmia_model.pth' not found. Please ensure it is in the directory.")
+
+    except:
+
+        st.error("Model file 'arrhythmia_model.pth' not found.")
         st.stop()
 
     model.eval()
-    
-    # ... rest of your code ...    input_data = torch.tensor(signal).reshape(1,1,-1)
+
+    # Convert to tensor
+    input_data = torch.tensor(signal).float().unsqueeze(0).unsqueeze(0)
 
     with torch.no_grad():
 
@@ -186,7 +198,7 @@ if uploaded_file:
         "UNKNOWN"
     ]
 
-    # ---------------- HEART RATE ---------------- #
+# ---------------- HEART RATE ---------------- #
 
     peaks,_ = find_peaks(signal,distance=150)
 
@@ -199,7 +211,7 @@ if uploaded_file:
 
         heart_rate=72
 
-    # ---------------- SIDE PANEL ---------------- #
+# ---------------- SIDE PANEL ---------------- #
 
     with col_side:
 
@@ -209,18 +221,17 @@ if uploaded_file:
 
         st.metric("AI Confidence",f"{conf:.2f}%")
 
-        # ---------- ECG QUALITY ---------- #
-
-        noise = np.std(signal)
+        noise=np.std(signal)
 
         st.markdown("### Signal Quality")
 
         if noise < 0.15:
-            st.success("Clean ECG Signal")
-        else:
-            st.warning("Possible Noise Detected")
 
-        # ---------- DOWNLOAD ECG ---------- #
+            st.success("Clean ECG Signal")
+
+        else:
+
+            st.warning("Possible Noise Detected")
 
         st.download_button(
             "Download ECG Data",
@@ -228,7 +239,7 @@ if uploaded_file:
             file_name="patient_ecg.csv"
         )
 
-    # ---------------- ECG GRAPH ---------------- #
+# ---------------- ECG GRAPH ---------------- #
 
     with col_main:
 
@@ -237,7 +248,7 @@ if uploaded_file:
         fig.add_trace(go.Scatter(
             y=signal,
             mode='lines',
-            line=dict(color='#f5f6fa',width=5),
+            line=dict(color='#38bdf8',width=4),
             name='ECG'
         ))
 
@@ -249,27 +260,19 @@ if uploaded_file:
             name='R Peaks'
         ))
 
-        fig.add_vrect(
-            x0=150,
-            x1=400,
-            fillcolor="rgba(34,197,94,0.15)",
-            line_width=0,
-            annotation_text="XAI ANALYSIS ZONE"
-        )
-
         fig.update_layout(
             template="plotly_dark",
-            paper_bgcolor="#7f8fa6",
-            plot_bgcolor="#7f8fa6",
+            paper_bgcolor="#020617",
+            plot_bgcolor="#020617",
             height=450
         )
 
-        fig.update_xaxes(showgrid=True, gridcolor="#273c75")
-        fig.update_yaxes(showgrid=True, gridcolor="#273c75")
+        fig.update_xaxes(showgrid=True, gridcolor="#334155")
+        fig.update_yaxes(showgrid=True, gridcolor="#334155")
 
         st.plotly_chart(fig,use_container_width=True)
 
-        # ---------------- ECG STATS ---------------- #
+# ---------------- ECG STATS ---------------- #
 
         st.markdown("### ECG Statistics")
 
@@ -279,7 +282,7 @@ if uploaded_file:
         c2.metric("Max Voltage",f"{np.max(signal):.3f}")
         c3.metric("Min Voltage",f"{np.min(signal):.3f}")
 
-        # ---------------- PATIENT ---------------- #
+# ---------------- PATIENT ---------------- #
 
         st.markdown("### Patient Profile")
 
@@ -289,7 +292,7 @@ if uploaded_file:
         p2.metric("Blood Pressure","128 / 82")
         p3.metric("SpO₂","97%")
 
-        # ---------------- REPORT ---------------- #
+# ---------------- REPORT ---------------- #
 
         st.markdown("### Clinical Summary")
 
